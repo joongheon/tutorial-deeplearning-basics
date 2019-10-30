@@ -49,10 +49,10 @@ def nn_D(x):
 IN_G = tf.placeholder(tf.float32, shape=[None, dim_noise])
 IN_D = tf.placeholder(tf.float32, shape=[None, dim_image])
 
-# Build Thief/Generator Neural Network
+# Build Generator Neural Network
 sample_G = nn_G(IN_G)
 
-# Build Police/Discriminator Neural Network (one from noise input, one from generated samples)
+# Build Discriminator Neural Network (one from noise input, one from generated samples)
 D_real = nn_D(IN_D)
 D_fake = nn_D(sample_G)
 vars_G = [W['HL_G'], W['OL_G'], b['HL_G'], b['OL_G']]
