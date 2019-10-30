@@ -7,80 +7,77 @@ import numpy as np
 import tensorflow as tf
 
 # Training Params
-num_steps = 1
+num_steps = 100000
 batch_size = 128
 
 # Network Params
 dim_image = 784 # 28*28 pixels
-nHL_thief = 256
-nHL_police = 256
+nHL_G = 256
+nHL_D = 256
 dim_noise = 100 # Noise data points
 
-# A custom initialization (see Xavier Glorot init)
+# A custom initialization (Xavier Glorot init)
 def glorot_init(shape):
 	return tf.random_normal(shape=shape, stddev=1. / tf.sqrt(shape[0] / 2.))
 
 W = {
-	'HL_thief' : tf.Variable(glorot_init([dim_noise, nHL_thief])),
-	'OL_thief' : tf.Variable(glorot_init([nHL_thief, dim_image])),
-	'HL_police': tf.Variable(glorot_init([dim_image, nHL_police])),
-	'OL_police': tf.Variable(glorot_init([nHL_police, 1])),
+	'HL_G' : tf.Variable(glorot_init([dim_noise, nHL_G])),
+	'OL_G' : tf.Variable(glorot_init([nHL_G, dim_image])),
+	'HL_D' : tf.Variable(glorot_init([dim_image, nHL_D])),
+	'OL_D' : tf.Variable(glorot_init([nHL_D, 1])),
 }
 b = {
-	'HL_thief' : tf.Variable(tf.zeros([nHL_thief])),
-	'OL_thief' : tf.Variable(tf.zeros([dim_image])),
-	'HL_police': tf.Variable(tf.zeros([nHL_police])),
-	'OL_police': tf.Variable(tf.zeros([1])),
+	'HL_G' : tf.Variable(tf.zeros([nHL_G])),
+	'OL_G' : tf.Variable(tf.zeros([dim_image])),
+	'HL_D' : tf.Variable(tf.zeros([nHL_D])),
+	'OL_D' : tf.Variable(tf.zeros([1])),
 }
 
-# Neural Network: Thief
-def nn_thief(x):
-	HL = tf.nn.relu(tf.add(tf.matmul(x, W['HL_thief']), b['HL_thief']))
-	OL = tf.nn.sigmoid(tf.add(tf.matmul(HL, W['OL_thief']), b['OL_thief']))
+# Neural Network: Generator
+def nn_G(x):
+	HL = tf.nn.relu(tf.add(tf.matmul(x, W['HL_G']), b['HL_G']))
+	OL = tf.nn.sigmoid(tf.add(tf.matmul(HL, W['OL_G']), b['OL_G']))
 	return OL
 
-# Neural Network: Police
-def nn_police(x):
-	HL = tf.nn.relu(tf.add(tf.matmul(x, W['HL_police']), b['HL_police']))
-	OL = tf.nn.sigmoid(tf.add(tf.matmul(HL, W['OL_police']), b['OL_police']))
+# Neural Network: Discriminator
+def nn_D(x):
+	HL = tf.nn.relu(tf.add(tf.matmul(x, W['HL_D']), b['HL_D']))
+	OL = tf.nn.sigmoid(tf.add(tf.matmul(HL, W['OL_D']), b['OL_D']))
 	return OL
 
 # Network Inputs
-IN_THIEF  = tf.placeholder(tf.float32, shape=[None, dim_noise])
-IN_POLICE = tf.placeholder(tf.float32, shape=[None, dim_image])
+IN_G = tf.placeholder(tf.float32, shape=[None, dim_noise])
+IN_D = tf.placeholder(tf.float32, shape=[None, dim_image])
 
 # Build Thief/Generator Neural Network
-sample_thief = nn_thief(IN_THIEF)
+sample_G = nn_G(IN_G)
 
 # Build Police/Discriminator Neural Network (one from noise input, one from generated samples)
-police_data_real = nn_police(IN_POLICE)
-police_data_fake = nn_police(sample_thief)
-vars_thief  = [W['HL_thief'],  W['OL_thief'],  b['HL_thief'],  b['OL_thief'] ]
-vars_police = [W['HL_police'], W['OL_police'], b['HL_police'], b['OL_police']]
+D_real = nn_D(IN_D)
+D_fake = nn_D(sample_G)
+vars_G = [W['HL_G'], W['OL_G'], b['HL_G'], b['OL_G']]
+vars_D = [W['HL_D'], W['OL_D'], b['HL_D'], b['OL_D']]
 
 # Cost, Train
-cost_thief   = -tf.reduce_mean(tf.log(police_data_fake))
-cost_police  = -tf.reduce_mean(tf.log(police_data_real) + tf.log(1. - police_data_fake))
-train_thief  = tf.train.AdamOptimizer(0.0002).minimize(cost_thief,  var_list=vars_thief)
-train_police = tf.train.AdamOptimizer(0.0002).minimize(cost_police, var_list=vars_police)
+cost_G = -tf.reduce_mean(tf.log(D_fake))
+cost_D = -tf.reduce_mean(tf.log(D_real) + tf.log(1. - D_fake))
+train_G = tf.train.AdamOptimizer(0.0002).minimize(cost_G, var_list=vars_G)
+train_D = tf.train.AdamOptimizer(0.0002).minimize(cost_D, var_list=vars_D)
 
 # Session
 with tf.Session() as sess:
 	sess.run(tf.global_variables_initializer())
 	for i in range(1, num_steps+1):
-		# Prepare Data
-		# Get the next batch of MNIST data (only images are needed, not labels)
+		# Get the next batch of MNIST data
 		batch_images, _ = mnist.train.next_batch(batch_size)
-		# Generate noise to feed to the generator/thief
+		# Generate noise to feed to the generator G
 		z = np.random.uniform(-1., 1., size=[batch_size, dim_noise])
 		# Train
-		sess.run([train_thief, train_police], feed_dict = {IN_POLICE: batch_images, IN_THIEF: z})
-		# Generate images from noise, using the generator network.
+		sess.run([train_G, train_D], feed_dict = {IN_D: batch_images, IN_G: z})
 		f, a = plt.subplots(4, 10, figsize=(10, 4))
 		for i in range(10):
-			# Noise input
 			z = np.random.uniform(-1., 1., size=[4, dim_noise])
-			g = sess.run([sample_thief], feed_dict={IN_THIEF: z})
+			g = sess.run([sample_G], feed_dict={IN_G: z})
 			g = np.reshape(g, newshape=(4, 28, 28, 1))
 			# Reverse colors for better display
 			g = -1 * (g - 1)
@@ -88,7 +85,6 @@ with tf.Session() as sess:
 				# Generate image from noise. Extend to 3 channels for matplot figure.
 				img = np.reshape(np.repeat(g[j][:, :, np.newaxis], 3, axis=2), newshape=(28, 28, 3))
 				a[j][i].imshow(img)
-		print(i)
 	f.show()
 	plt.draw()
 	plt.waitforbuttonpress()
