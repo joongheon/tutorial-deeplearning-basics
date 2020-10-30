@@ -1,0 +1,16 @@
+
+
+제1강. 배경, 목적, Q-Learning, MDP, DQN
+https://youtu.be/IhmKXWqZ__I
+강의시간) 2시간45분
+연사) 김중헌
+
+제2강. 정책기반강화학습(A2C, PPO, DDPG) 및 다중에이전트강화학습(CommNet, G2ANet)
+https://youtu.be/JBwAKVtEGMU
+강의시간) 3시간25분
+연사) 윤원준
+
+제3강. 모방학습과 Multi-Agent 강화학습의 자율주행, 의료AI, 드론, 스타크래프트게임AI등으로의 응용
+https://youtu.be/if4mYN4XUF4
+강의시간) 4시간45분
+연사) 신명재, 윤원준
